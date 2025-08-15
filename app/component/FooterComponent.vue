@@ -20,6 +20,13 @@
                 flex: 0 0 50%;
             }
         }
+        a{
+            color: black;
+            text-decoration-line: none;
+            &:hover{
+                color: rgb(71, 71, 71);
+            }
+        }
     }
 </style>
 
@@ -33,6 +40,7 @@
         </div>
         <div>
             <p>本網站是以Next製作，並放在github與vercel上使用，僅供用於展示</p>
+            <p>資源採用:<a target="_blank" href="https://opendata.cwa.gov.tw/dist/opendata-swagger.html#/">中央氣象署開放資料平臺之資料擷取API</a></p>
             <p>Copyright© 2025 劉星緯 All rights reserved</p>
         </div>
     </footer>

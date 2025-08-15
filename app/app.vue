@@ -12,7 +12,7 @@ import MapComponent from './component/MapComponent.vue';
     <!-- <NuxtWelcome /> -->
     <MenuComponent/>
     <NuxtLayout/>
-    <h2>這裡是app.vue</h2>
+    <!-- <h2>這裡是app.vue</h2> -->
     <MapComponent/>
     <FooterComponent/>
   </div>

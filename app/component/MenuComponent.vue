@@ -3,7 +3,7 @@
 <template>
     <div>
         <h2>
-            this is menu
+            <!-- this is menu -->
         </h2>
     </div>
 </template>

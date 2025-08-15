@@ -1,15 +1,15 @@
 <script setup>
-import { ref, onMounted, nextTick } from "vue";
+import { ref, onMounted,shallowRef,watch } from "vue";
 
 // 使用動態導入來避免 SSR 問題 
 // geojsonData = 地圖資料 zoom放大比例 center 地圖位置
 const geojsonData = ref(null);
-const zoom = ref(7);
+const zoom = ref(6.9);
 const center = ref([23.5978, 120.8605]);
 
 // 動態載入 Leaflet 組件 LMap與LGeoJson的加載與渲染
-const LMap = ref(null);
-const LGeoJson = ref(null);
+const LMap = shallowRef(null);
+const LGeoJson = shallowRef(null);
 // isClient 渲染完成 isLoading 是否載入完成 error 載入錯誤訊息
 const isClient = ref(false);
 const isLoading = ref(false);
@@ -18,6 +18,20 @@ const error = ref(null);
 // 選中的區域
 const selectedRegion = ref(null);
 const selectLayer = ref(null);
+
+// 抓取開源資料
+const getWeatherData = ref(null);
+// 顯示的資料 分別是 Wx(天氣)  PoP(降雨率) CI(舒適度) minT maxT
+const showWeatherData = ref(Array.from({length:3}, () => Array(8).fill(null) ) );
+// 判斷時間 初始判斷抓取載入網頁時間
+const nowTime = ref(null);
+
+// 區域的清單
+const AreaList = ref([]);
+const AreaToLayer = ref(new Map());
+const selectRegionName = ref("");
+const selectRegionFunctionUse = ref(false);
+
 
 // 動態載入leaflet
 const loadingLeaflet = async() =>{
@@ -47,9 +61,13 @@ const loadingLeaflet = async() =>{
       if (!res.ok) {
         throw new Error(`載入地圖資料失敗: ${res.status}`);
       }
+      // 更新地圖資訊
       geojsonData.value = await res.json();
+      // 將地圖資訊每一個名稱進行保存
+      geojsonData.value.features.forEach(index=>{
+        AreaList.value.push(index.properties.COUNTYNAME);
+      })
       isClient.value = true;
-      
       
     } 
   catch (err) {
@@ -62,17 +80,90 @@ const loadingLeaflet = async() =>{
     selectedRegion.value = geojsonData.value.features[1];
   }
 }
-
+// 載入天氣
+const loadingWeather = async() =>{
+  try{
+    const weatherData = await $fetch('/api/weather');
+    getWeatherData.value = weatherData.data.records.location;
+    let getTimeData = weatherData.data.records.location[0].weatherElement[0].time;
+    let nowTimeString = `${String(nowTime.value.getMonth()+1).padStart(2, '0')}.${String(nowTime.value.getDate()).padStart(2, '0')}`
+    for(let i = 0 ; i < 3 ; i++){
+      let startTime = new Date(getTimeData[i].startTime);
+      let endTime = new Date(getTimeData[i].endTime);
+      if(nowTimeString === `${String(startTime.getMonth() + 1).padStart(2, '0')}.${String(startTime.getDate()).padStart(2, '0')}` && nowTimeString === `${String(endTime.getMonth() + 1).padStart(2, '0')}.${String(endTime.getDate()).padStart(2, '0')}`){
+        showWeatherData.value[i][5] = "今日"
+      }else if(nowTimeString === `${String(startTime.getMonth() + 1).padStart(2, '0')}.${String(startTime.getDate()).padStart(2, '0')}`){
+        showWeatherData.value[i][5] = "今晚明早";
+      }else{
+        showWeatherData.value[i][5] = "明日";
+      }
+      let startDateString =`${String(startTime.getHours()).padStart(2, '0')}00` ;
+      let endDateString = `${String(endTime.getHours()).padStart(2, '0')}00`;
+      showWeatherData.value[i][6] = `${startDateString}`;
+      showWeatherData.value[i][7] = `${endDateString}`;
+    }
+  }catch(e){
+    console.error(`載入天氣資料錯誤`,e);
+  }
+}
 onMounted(async () => {
   // 確保在客戶端執行
   if (typeof window !== 'undefined') {
     if(isLoading.value === false){
+      nowTime.value = new Date();
+      await loadingWeather();
       await loadingLeaflet();
+      
     }
   }
 });
 
-// 準備好之後進行關閉
+// 如果選的地方改變，捕捉最新的位置
+watch(selectedRegion ,()=>{
+  let data = getWeatherData.value.find(name => name.locationName === selectedRegion.value?.properties.COUNTYNAME);
+  selectRegionName.value = selectedRegion.value?.properties.COUNTYNAME;
+  // 過濾資料
+  data.weatherElement.forEach(index=>{
+    let name = index.elementName;
+    let putNumber = 0;
+    if(name === "Wx"){
+      putNumber = 0;
+    }else if(name === "PoP"){
+      putNumber = 1;
+    }else if(name === "CI"){
+      putNumber = 2;
+    }else if(name === "MinT"){
+      putNumber = 3;
+    }else if(name === "MaxT"){
+      putNumber = 4;
+    }
+    // 尋找當下時間
+  
+    for(let i = 0 ; i < 3 ; i++){
+      showWeatherData.value[i][putNumber] = index.time[i].parameter.parameterName;
+    }
+  })
+})
+
+// 監聽是否使用了select功能
+watch(selectRegionFunctionUse , ()=>{
+  if(selectRegionFunctionUse.value === false) return ;
+  const ClickData = AreaToLayer.value.get(selectRegionName.value)
+  changeRegion(ClickData.layer,ClickData.feature);
+  selectRegionFunctionUse.value = false;
+})
+
+// 使用select功能去改變leaflet地圖
+const changeRegion = (layer,feature) =>{
+  // 復原原本的style
+  selectLayer.value.setStyle(defaultStyle);
+  // 更新內容 與設定被選取
+  selectedRegion.value = feature;
+  selectLayer.value = layer;
+  layer.setStyle(selectedStyle);
+}
+
+// 準備好之後進行關閉leaflet的功能
 const disableMap = (map)=>{
   map.zoomControl.remove();
   map.dragging.disable()
@@ -83,6 +174,7 @@ const disableMap = (map)=>{
   map.keyboard.disable()
   if (map.tap) map.tap.disable()
 }
+
 
 // 點擊區域
 const clickMapRegion = (event,feature) =>{
@@ -96,6 +188,7 @@ const clickMapRegion = (event,feature) =>{
 }
 
 
+// 對於component的直接設定
 const mapStyle = {
   width:"300px",
   height:"500px",
@@ -126,7 +219,6 @@ const hoverStyle = {
   fillOpacity: 0.7
 };
 
-
 // 處理滑鼠懸停進入
 const handleMouseOver = (event, feature) => {
   // 只有未選中的區域才顯示懸停效果
@@ -139,7 +231,7 @@ const handleMouseOver = (event, feature) => {
 
 // 處理滑鼠懸停離開
 const handleMouseOut = (event, feature) => {
-  console.log(feature.properties.COUNTYNAME);
+  // console.log(feature.properties.COUNTYNAME);
   // 恢復到原始樣式
   const layer = event.target;
   // 如果不是被選取的 則去重製
@@ -147,6 +239,8 @@ const handleMouseOut = (event, feature) => {
     layer.setStyle(defaultStyle);
   }
 };
+
+
 </script>
 
 <style  module="style" lang="scss">
@@ -162,15 +256,61 @@ const handleMouseOut = (event, feature) => {
     align-items: center;
     justify-content: center;
   }
+
   .mapContainer{
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 500px;
+    background-color: #fff;
+    min-height: 500px;
     width: 100%;
+    gap: 12px;
+    @media(min-width:768px){
+      flex-direction: row-reverse;
+    }
+
     .LMapDiv{
-      height: 500px;
-      width: 500px;
+      display: none;
+      background-color: #fff;
+      @media(min-width:768px){
+        display: block;
+        flex: 0 0 calc((100%/12) * 5)
+      }
+      .LGeoJsonMap{
+        background-color: #fff;
+      }
+    }
+
+    .mapMessageDiv{
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      @media(min-width:768px){
+        flex: 0 0 calc((100%/12) * 5)
+      }
+      .selectDiv{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .messageCardDiv{
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        // flex-wrap: wrap;
+        // background-color: #793c3c;
+        .mapMessageCard{
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+      }
+      
     }
   }
 </style>
@@ -179,7 +319,7 @@ const handleMouseOut = (event, feature) => {
 
 <template>
   <div>
-    <h2>這裡是Map測試</h2>
+    <h2>氣象預報</h2>
     <client-only>
       <div v-if="error" :class="style.errorMessage">
         <p>載入地圖時發生錯誤: {{ error }}</p>
@@ -207,6 +347,7 @@ const handleMouseOut = (event, feature) => {
           :minZoom="zoom"
           @ready="disableMap"
           :style="mapStyle"
+          :class="style.LMapDiv"
         >
 
           <component
@@ -214,6 +355,7 @@ const handleMouseOut = (event, feature) => {
             :is="LGeoJson"
             :geojson="geojsonData"
             :key="selectedRegion ? selectedRegion.properties.name : 'no-selection'"
+            
             :options="{
               style: null,
               onEachFeature: (feature, layer) => {
@@ -224,6 +366,8 @@ const handleMouseOut = (event, feature) => {
                 }else{
                   layer.setStyle(defaultStyle);
                 }
+                // 建立清單
+                AreaToLayer.set(feature.properties.COUNTYNAME,{feature,layer});
                 // 點擊事件
                 layer.on('click', (event) => { clickMapRegion(event, feature); } );
                 // 滑鼠懸停事件
@@ -232,18 +376,39 @@ const handleMouseOut = (event, feature) => {
               }
             }"
 
+            :class="style.LGeoJsonMap"
           />
 
         </component>
         
         <!-- 顯示選中的區域資訊 -->
-        <div v-if="selectedRegion" class="selected-region-info">
-          <h3>選中的區域: {{ selectedRegion?.properties.COUNTYNAME}}</h3>
-        </div>
-        <div v-else class="no-selection-info">
-          <p>點擊任何區域來選擇</p>
-        </div>
 
+        <div :class="style.mapMessageDiv">
+          <div :class="style.selectDiv">
+            <h3>{{selectRegionName}}</h3>
+            <select v-model="selectRegionName" @change ="selectRegionFunctionUse = true">
+              <option value="" disabled>請選擇行政區</option>
+              <option v-for="area in AreaList" :key="area" :value="area">
+                {{ area }}
+              </option>
+            </select>
+          </div>
+
+          <div :class="style.messageCardDiv">
+            <div v-for="(data,dataKey) in showWeatherData" :key="dataKey" >
+              <div :class="style.mapMessageCard">
+                <p>{{ data[5] }}</p>
+                <p>{{ data[6]}} ~ {{ data[7]}}</p>
+                <p>當前天氣: {{data[0]}}</p>
+                <p>溫度:{{data[3]}} ~ {{data[4]}}</p>
+                <p>當前降雨機率:{{data[1]}}%</p>
+                <p>當前舒適度:{{data[2]}}</p>
+              </div>
+            </div>
+          </div>
+          
+          
+        </div>
       </div>
 
       <div v-else class="fallback">
