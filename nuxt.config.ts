@@ -1,11 +1,12 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   
   // 添加 Leaflet CSS
   css: [
-    'leaflet/dist/leaflet.css'
+    'leaflet/dist/leaflet.css',
   ],
   
   // 配置 SSR
@@ -16,5 +17,8 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: ['leaflet']
     }
+  },
+  nitro: {
+    preset: 'vercel'  // 只使用一個 Vercel adapter
   }
 })

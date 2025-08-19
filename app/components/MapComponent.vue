@@ -29,9 +29,12 @@ const nowTime = ref(null);
 // 區域的清單
 const AreaList = ref([]);
 const AreaToLayer = ref(new Map());
+const AreaToLayerReady = ref(false);
 const selectRegionName = ref("");
 const selectRegionFunctionUse = ref(false);
 
+// 抓取共用資料
+const areaSelect = useNuxtApp().$areaSelect
 
 // 動態載入leaflet
 const loadingLeaflet = async() =>{
@@ -77,7 +80,7 @@ const loadingLeaflet = async() =>{
   } 
   finally {
     isLoading.value = false;
-    selectedRegion.value = geojsonData.value.features[1];
+    selectRegionName.value = areaSelect.value.name;
   }
 }
 // 載入天氣
@@ -106,6 +109,7 @@ const loadingWeather = async() =>{
     console.error(`載入天氣資料錯誤`,e);
   }
 }
+// 初次載入完成 轉CSR去載入天氣與地圖
 onMounted(async () => {
   // 確保在客戶端執行
   if (typeof window !== 'undefined') {
@@ -113,12 +117,15 @@ onMounted(async () => {
       nowTime.value = new Date();
       await loadingWeather();
       await loadingLeaflet();
-      
     }
   }
 });
+// 監聽selectRegionName 每次選舉換地方後將進行切換共用參數
+watch(selectRegionName, ()=>{
+  areaSelect.value.name = selectRegionName.value;
+})
 
-// 如果選的地方改變，捕捉最新的位置
+// 如果選的地方改變，捕捉最新的位置，更新顯示資料
 watch(selectedRegion ,()=>{
   let data = getWeatherData.value.find(name => name.locationName === selectedRegion.value?.properties.COUNTYNAME);
   selectRegionName.value = selectedRegion.value?.properties.COUNTYNAME;
@@ -144,7 +151,10 @@ watch(selectedRegion ,()=>{
     }
   })
 })
-
+// 確定資料準備好，然後去使用select確保可以與地圖同步 只使用一次
+watch(AreaToLayerReady, ()=>{
+  selectRegionFunctionUse.value = true;
+}, { once: true })
 // 監聽是否使用了select功能
 watch(selectRegionFunctionUse , ()=>{
   if(selectRegionFunctionUse.value === false) return ;
@@ -153,10 +163,16 @@ watch(selectRegionFunctionUse , ()=>{
   selectRegionFunctionUse.value = false;
 })
 
+watch(AreaList,()=>{
+  console.log(AreaList.value);
+})
+
 // 使用select功能去改變leaflet地圖
 const changeRegion = (layer,feature) =>{
   // 復原原本的style
-  selectLayer.value.setStyle(defaultStyle);
+  if(selectLayer.value){
+    selectLayer.value.setStyle(defaultStyle);
+  }
   // 更新內容 與設定被選取
   selectedRegion.value = feature;
   selectLayer.value = layer;
@@ -179,13 +195,16 @@ const disableMap = (map)=>{
 // 點擊區域
 const clickMapRegion = (event,feature) =>{
   // 復原原本的style
-  selectLayer.value.setStyle(defaultStyle);
+  if(selectLayer.value){
+    selectLayer.value.setStyle(defaultStyle);
+  }
   // 更新內容 與設定被選取
   selectedRegion.value = feature;
   const layer = event.target;
   selectLayer.value = layer;
   layer.setStyle(selectedStyle);
 }
+
 
 
 // 對於component的直接設定
@@ -231,7 +250,6 @@ const handleMouseOver = (event, feature) => {
 
 // 處理滑鼠懸停離開
 const handleMouseOut = (event, feature) => {
-  // console.log(feature.properties.COUNTYNAME);
   // 恢復到原始樣式
   const layer = event.target;
   // 如果不是被選取的 則去重製
@@ -244,6 +262,9 @@ const handleMouseOut = (event, feature) => {
 </script>
 
 <style  module="style" lang="scss">
+h2{
+  padding-left: 16px;
+}
   .errorMessage{
     display: flex;
     align-items: center;
@@ -269,13 +290,15 @@ const handleMouseOut = (event, feature) => {
     @media(min-width:768px){
       flex-direction: row-reverse;
     }
-
     .LMapDiv{
       display: none;
       background-color: #fff;
       @media(min-width:768px){
         display: block;
-        flex: 0 0 calc((100%/12) * 5)
+        flex: 0 0 calc(( 100% / 12) * 6)
+      }
+      @media(min-width:1024px){
+        flex: 0 0 calc(( 100% / 12) * 5);
       }
       .LGeoJsonMap{
         background-color: #fff;
@@ -284,30 +307,48 @@ const handleMouseOut = (event, feature) => {
 
     .mapMessageDiv{
       display: flex;
-      flex-direction: row;
+      flex-direction: column  ;
       align-items: center;
       justify-content: center;
+      flex: 0 0 100%;
+      width: 100%;
+      gap: 12px;
       @media(min-width:768px){
-        flex: 0 0 calc((100%/12) * 5)
+        flex: 0 0 calc(( 100% / 12 ) * 6);
+      }
+      @media(min-width:1024px){
+        // flex: 0 0 calc(( 100% / 12) * 5)
       }
       .selectDiv{
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         align-items: center;
         justify-content: center;
+        gap: 8px;
+        .selectStyle{
+          border-radius: 8px;
+          text-align: center;
+        }
       }
       .messageCardDiv{
         display: flex;
         flex-direction: row;
         align-items: center;
         justify-content: center;
-        // flex-wrap: wrap;
-        // background-color: #793c3c;
+        flex-wrap: wrap;
+        gap:12px;
         .mapMessageCard{
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
+          background-color:wheat;
+          min-width: 150px;
+          border-radius:8px;
+          @media(min-width:768px){
+            min-width: 150px;
+    
+          }
         }
       }
       
@@ -375,6 +416,7 @@ const handleMouseOut = (event, feature) => {
                 layer.on('mouseout', (event) => handleMouseOut(event, feature));
               }
             }"
+            @ready="AreaToLayerReady = true"
 
             :class="style.LGeoJsonMap"
           />
@@ -386,7 +428,7 @@ const handleMouseOut = (event, feature) => {
         <div :class="style.mapMessageDiv">
           <div :class="style.selectDiv">
             <h3>{{selectRegionName}}</h3>
-            <select v-model="selectRegionName" @change ="selectRegionFunctionUse = true">
+            <select v-model="selectRegionName" @change ="selectRegionFunctionUse = true" :class="style.selectStyle">
               <option value="" disabled>請選擇行政區</option>
               <option v-for="area in AreaList" :key="area" :value="area">
                 {{ area }}
@@ -399,10 +441,10 @@ const handleMouseOut = (event, feature) => {
               <div :class="style.mapMessageCard">
                 <p>{{ data[5] }}</p>
                 <p>{{ data[6]}} ~ {{ data[7]}}</p>
-                <p>當前天氣: {{data[0]}}</p>
-                <p>溫度:{{data[3]}} ~ {{data[4]}}</p>
-                <p>當前降雨機率:{{data[1]}}%</p>
-                <p>當前舒適度:{{data[2]}}</p>
+                <p>{{data[0]}}</p>
+                <p>{{data[3]}}℃ ~ {{data[4]}}℃</p>
+                <p>降雨機率:{{data[1]}}%</p>
+                <p>{{data[2]}}</p>
               </div>
             </div>
           </div>
@@ -411,7 +453,7 @@ const handleMouseOut = (event, feature) => {
         </div>
       </div>
 
-      <div v-else class="fallback">
+      <div v-else >
         <p>地圖組件載入失敗</p>
       </div>
     </client-only>

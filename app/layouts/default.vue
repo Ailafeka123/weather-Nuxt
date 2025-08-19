@@ -1,7 +1,14 @@
-<template>
-    <div>
+<script lang="ts">
+    // import FooterComponent from '~/components/FooterComponent.vue';
+    import "@/style/global.css"
+</script>
 
-        <!-- <h2>這裡是layout</h2> -->
+<template>
+    <header>
+        <MenuComponent/>
+    </header>
+    <main>
         <slot />
-    </div>
+    </main>
+    <FooterComponent/>
 </template>

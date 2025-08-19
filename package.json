@@ -17,6 +17,10 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
-    "sass": "^1.89.2"
+    "@nuxt/types": "^2.18.1",
+    "sass": "^1.89.2",
+    "typescript": "^5.9.2",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vue-tsc": "^3.0.5"
   }
 }
