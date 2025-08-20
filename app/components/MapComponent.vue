@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted,shallowRef,watch } from "vue";
+import { useRoute } from "vue-router";
 
 // 使用動態導入來避免 SSR 問題 
 // geojsonData = 地圖資料 zoom放大比例 center 地圖位置
@@ -35,6 +36,13 @@ const selectRegionFunctionUse = ref(false);
 
 // 抓取共用資料
 const areaSelect = useNuxtApp().$areaSelect
+
+// 抓取path資料
+const route = useRoute();
+const routeArea = ref(Array.isArray(route.query.area)?
+  route.query.area[0] ?? ""
+  :route.query.area ?? ""
+)
 
 // 動態載入leaflet
 const loadingLeaflet = async() =>{
@@ -80,7 +88,11 @@ const loadingLeaflet = async() =>{
   } 
   finally {
     isLoading.value = false;
-    selectRegionName.value = areaSelect.value.name;
+    if(routeArea.value === ""){
+      selectRegionName.value = areaSelect.value.name;
+    }else{
+      selectRegionName.value = routeArea.value;
+    }
   }
 }
 // 載入天氣
@@ -120,6 +132,7 @@ onMounted(async () => {
     }
   }
 });
+
 // 監聽selectRegionName 每次選舉換地方後將進行切換共用參數
 watch(selectRegionName, ()=>{
   areaSelect.value.name = selectRegionName.value;
@@ -158,13 +171,10 @@ watch(AreaToLayerReady, ()=>{
 // 監聽是否使用了select功能
 watch(selectRegionFunctionUse , ()=>{
   if(selectRegionFunctionUse.value === false) return ;
+  if(!selectRegionName.value)return ;
   const ClickData = AreaToLayer.value.get(selectRegionName.value)
   changeRegion(ClickData.layer,ClickData.feature);
   selectRegionFunctionUse.value = false;
-})
-
-watch(AreaList,()=>{
-  console.log(AreaList.value);
 })
 
 // 使用select功能去改變leaflet地圖

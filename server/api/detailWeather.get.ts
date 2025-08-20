@@ -1,16 +1,15 @@
 import { defineEventHandler  } from "h3";
-
+import mapping from '../config/detailWeatherMap.json'
 export default defineEventHandler( async(event)=>{
     // 捕捉參數
     const areaName = getQuery(event).area;
-    const dayNumber = getQuery(event).day
+    const dayNumber = getQuery(event).day;
     if(typeof areaName !== "string"){
         return sendError(event,createError({
             statusCode:400,
             statusMessage:"area isn't string"
         }))
     }
-
     if (typeof dayNumber !== "string"){
         console.log(typeof dayNumber);
         return sendError(event,createError({
@@ -19,6 +18,8 @@ export default defineEventHandler( async(event)=>{
         }))
     }
     
+    
+
     // 抓取環境APIKey
     const apiKey:string|undefined = process.env.CWB_API_KEY;
     if(!apiKey){
@@ -31,7 +32,10 @@ export default defineEventHandler( async(event)=>{
 
     // https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-D0047-001?Authorization=AAA&sort=time
     // 測試 宜蘭縣3日 為 F-D0047-001
-    const link = "F-D0047-003"
+    // const link = "F-D0047-003"
+    const mapKey:string = `${areaName}-${dayNumber}`;
+    const link = (mapping as Record<string,string>)[mapKey]
+
     // 捕捉網站回傳資訊
     const resp = await fetch(`https://opendata.cwa.gov.tw/api/v1/rest/datastore/${link}?Authorization=${apiKey}&sort=time
 `);

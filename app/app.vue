@@ -1,8 +1,9 @@
 <script setup lang="ts">
   import { ref,onMounted } from 'vue';
-  
-  let iconImage = ref<string>('/image/selficon.svg');
-
+  // 共用資料，確定是否是暗色主題
+  const userClient = useNuxtApp().$userClient as Ref <boolean>
+  // 小圖標路徑
+  const iconImage = ref<string>('/image/selficon.svg');
   useHead({
     titleTemplate:"Aila-氣象網站",
     meta:[
@@ -26,6 +27,7 @@
     let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
     if(darkMode){
       iconImage.value = `/image/selficon_light.svg`;
+      userClient.value = true;
     }
     if(link){
       document.head.removeChild(link);

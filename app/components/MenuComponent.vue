@@ -2,17 +2,20 @@
 import { ref, onMounted, watch } from 'vue';
     //menu捕捉共用 
     const areaSelect  = useNuxtApp().$areaSelect as Ref <{name:string, value:3|7 }>;
-    // 
+    
+    // 避免錯誤 使用本區ref
+    const selectArea = ref<string>("");
+    // 初始化
     onMounted(()=>{
-        console.log("這裡是menu初始化")
-        console.log(areaSelect.value);
-    })
 
+    })
+    // 監聽 areaSelect 去對應共用資源
     watch(areaSelect,()=>{
-        console.log("這裡是menu");
-        console.log(areaSelect.value);
+        selectArea.value = areaSelect.value.name;
     },{deep:true})
+
 </script>
+
 <style module="style" lang="scss">
     .menuDiv{
         display: flex;
@@ -46,9 +49,9 @@ import { ref, onMounted, watch } from 'vue';
 <template>
     <nav id="menu" :class="style.menuDiv" aria-label="主要導覽列">
         <ul :class="style.navitemList">
-            <li><NuxtLink :to= "{ path: `/` ,query:{area:areaSelect.name} }">首頁</NuxtLink></li>
-            <li><NuxtLink :to="{path:`/weekWeather` , query:{area:areaSelect.name} }">一周預告</NuxtLink></li>
-            <li><NuxtLink :to="{path:`/triDayWeather`, query:{area:areaSelect.name}}">三天預告</NuxtLink></li>
+            <li><NuxtLink :to= "{ path: `/` ,query:{area:selectArea} }">首頁</NuxtLink></li>
+            <li><NuxtLink :to="{path:`/weekWeather` , query:{area:selectArea} }">一周預告</NuxtLink></li>
+            <li><NuxtLink :to="{path:`/triDayWeather`, query:{area:selectArea}}">三天預告</NuxtLink></li>
         </ul>
     </nav>
 </template>

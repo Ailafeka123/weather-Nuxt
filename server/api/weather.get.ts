@@ -3,8 +3,8 @@ import { defineEventHandler  } from "h3";
 
 export default defineEventHandler( async(event)=>{
 
-    const apiKey:string|undefined = process.env.CWB_API_KEY;
     // 抓取環境APIKey
+    const apiKey:string|undefined = process.env.CWB_API_KEY;
     if(!apiKey){
         return sendError(event, createError({
             statusCode:500,
