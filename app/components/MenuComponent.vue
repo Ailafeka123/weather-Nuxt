@@ -5,9 +5,10 @@ import { ref, onMounted, watch } from 'vue';
     
     // 避免錯誤 使用本區ref
     const selectArea = ref<string>("");
-    // 初始化
+    
+    // 初始化 把plugins丟到ref
     onMounted(()=>{
-
+        selectArea.value = areaSelect.value.name
     })
     // 監聽 areaSelect 去對應共用資源
     watch(areaSelect,()=>{

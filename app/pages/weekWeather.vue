@@ -26,21 +26,14 @@ const showDay = ref<string[]>([]);
 const showWeatherData = ref<any[]>([]);
 // 今天
 const nowDate = ref<Date>(new Date() );
-console.log(`nowDate = ${nowDate.value}`);
 // 抓取資料
 const loading7DayWeather = async() =>{
-    console.log("進行呼叫");
     try{
         apiLoading.value = true;
         const weatherData = await $fetch<{success:boolean, data:any}>('/api/detailWeather',{
             method:"GET",
-            params:{area:area.value, day:"7"}   
+            params:{area:selectArea.value, day:"7"}   
         });
-
-        // 這兩個是測試使用的console.log
-        // console.log(weatherData.data.records.Locations)
-        // console.log(weatherData.data.records.Locations[0].Location);
-
         // 更新資料到本地保存
         weatherDataSave.value = weatherData.data.records.Locations[0].Location;
         // 捕捉所有時間點
@@ -53,22 +46,20 @@ const loading7DayWeather = async() =>{
                 lastDay = `${ String( day.getMonth()+1 ).padStart(2, '0') }/${ String( day.getDate() ).padStart(2, '0') }`;
             }
         })
-        // 把該區域的名稱去保存
-        weatherData.data.records.Locations[0].Location.forEach((index:any)=>{
-            showWeatherData.value.push(index.LocationName);
-        })
     }catch(e){
         console.error("錯誤:",e);
     }finally{
         apiLoading.value = false;
     }
 }
-// 
+// 初始化 找後臺資料
 onMounted(async()=>{
     if(typeof window !== 'undefined'){
-        // 如果有在route抓到參數，則同步到本地顯示裡面。
+        // 如果有在route抓到參數，則同步到本地顯示裡面。 沒有則抓取plugins丟到本地
         if(area.value !== ""){
             selectArea.value = area.value;
+        }else{
+            selectArea.value = areaSelect.value.name;
         }
         // 抓取對應的位置資料
         await loading7DayWeather();
@@ -81,21 +72,77 @@ watch(selectArea,()=>{
 
 // 當資料更新的時候，更新展示資料
 watch(weatherDataSave,()=>{
-    console.log("這裡是weatherDateSave")
-    // console.log(weatherDataSave.value);
-    console.log(weatherDataSave.value[0].WeatherElement);
-    // 找到 最高溫度 最低溫度 天氣現象 的數字
-    const needMap = new Map<string,number>();
-    for(let i = 0 ; i < weatherDataSave.value[0].WeatherElement.length; i++){
-        let ElementName:string = weatherDataSave.value[0].WeatherElement[i].ElementName;
-        if(ElementName === "最高溫度" || ElementName === "最低溫度" || ElementName === "天氣現象"){
-            needMap.set(ElementName,i);
-        }
-    }
-    console.log(needMap);
     weatherDataSave.value.forEach((index:any)=>{
-        const temp :any = [];
-        
+        const temp :any = [index.LocationName];
+        const dayList :any[] = Array(showDay.value.length);
+        for(let i = 0 ; i < dayList.length ; i++){
+            dayList[i] = [];
+        }
+        // 找到 最高溫度 最低溫度 天氣現象 的數字 然後丟到dayList裡面
+        for(let i = 0 ; i < index.WeatherElement.length; i++){
+            let lastDay:string = "";
+            let times : number = 0;
+            if(index.WeatherElement[i].ElementName === "最高溫度" ){
+                let maxT:number = -Infinity;
+                index.WeatherElement[i].Time.forEach((index:any)=>{
+                    let day : Date = new Date(index.StartTime); 
+                    const dayString : string = `${ String( day.getMonth()+1 ).padStart(2, '0') }/${ String( day.getDate() ).padStart(2, '0') }`
+                    if(dayString !== lastDay){
+                        if(lastDay !== ""){
+                            dayList[times].maxT = maxT;
+                            times++;
+                        }
+                        lastDay = dayString;
+                        maxT = parseInt(index.ElementValue[0].MaxTemperature);
+                    }else{
+                        maxT = Math.max(maxT, parseInt(index.ElementValue[0].MaxTemperature) );
+                    }
+                })
+                dayList[times].maxT =maxT;
+            }else if(index.WeatherElement[i].ElementName === "最低溫度"){
+                let minT:number = Infinity;
+                index.WeatherElement[i].Time.forEach((index:any)=>{
+                    let day : Date = new Date(index.StartTime); 
+                    const dayString : string = `${ String( day.getMonth()+1 ).padStart(2, '0') }/${ String( day.getDate() ).padStart(2, '0') }`
+                    if(dayString !== lastDay){
+                        if(lastDay !== ""){
+                            dayList[times].minT = minT;
+                            times++;
+                        }
+                        lastDay = dayString;
+                        minT = Math.min(minT, parseInt(index.ElementValue[0].MinTemperature))
+                    }else{
+                        minT = parseInt(index.ElementValue[0].MinTemperature);
+                    }
+                })
+                dayList[times].minT = minT;
+            }else if(index.WeatherElement[i].ElementName === "天氣現象"){
+                let weatherNumber : number = 0;
+                let weatherString : string = "";
+                index.WeatherElement[i].Time.forEach((index:any)=>{
+                    let day : Date = new Date(index.StartTime); 
+                    const dayString : string = `${ String( day.getMonth()+1 ).padStart(2, '0') }/${ String( day.getDate() ).padStart(2, '0') }`
+                    if (dayString !== lastDay){
+                        if(lastDay !== ""){
+                            dayList[times].weather = weatherString;
+                            times++;
+                        }
+                        lastDay = dayString;
+                        weatherNumber = parseInt(index.ElementValue[0].WeatherCode);
+                        weatherString = index.ElementValue[0].Weather;
+                    }else{
+                        if(weatherNumber > parseInt(index.ElementValue[0].WeatherCode) ){
+                            weatherString = index.ElementValue[0].Weather;
+                        }
+                    }
+                })
+                dayList[times].weather = weatherString;
+            }else{
+                continue;
+            }
+        }
+        temp.push([...dayList]);
+        showWeatherData.value.push(temp);
     })
 })
 
@@ -108,7 +155,7 @@ watch(weatherDataSave,()=>{
         align-items: center;
         justify-content: center;
         width: 100%;
-
+        gap: 8px;
         .cardTitle{
             display: flex;
             flex-direction: row;
@@ -120,8 +167,14 @@ watch(weatherDataSave,()=>{
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                // width: 50px;
-                background-color: rgb(83, 166, 214);
+                // background-color: rgb(83, 166, 214);
+            }
+            .cardItem{
+                width: calc(100%/8);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
             }
         }
 
@@ -130,6 +183,14 @@ watch(weatherDataSave,()=>{
             flex-direction: row;
             align-items: center;
             justify-content: space-around;
+            width: 100%;
+            .cardItem{
+                width: calc(100%/8);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
         }
 
     }
@@ -146,15 +207,25 @@ watch(weatherDataSave,()=>{
 
         <div v-else :class="style.cardDivContent">
             <div :class="style.cardTitle">
-                <div :class="style.cardTitleAreaName">
+                <div :class="style.cardTitleAreaName ,style.cardItem">
                     <p>地區</p>
                 </div>
-                <div v-for="(day ,dayKey) of showDay" :key="dayKey" :class="style.cardTitleTime">
+                <div v-for="(day ,dayKey) in showDay" :key="dayKey" :class="style.cardTitleTime ,style.cardItem">
                     <p>{{ day }}</p>
                 </div>
             </div>
-             <div v-for="(item, key) of showWeatherData" :key="key" :calss="style.cardDiv">
-                {{ item }}
+            <div v-for="(row, rowKey) in showWeatherData" :key="rowKey" :class="style.cardDiv">
+                <div :class="style.cardItem">
+                    {{ row[0] }}
+                </div>
+                <div v-for="(rowData, DataKey) in row[1]" :key="`${DataKey}-${rowKey}`" :class="style.cardItem">
+                    <div >
+                        <p>{{ rowData.weather}}</p>
+                    </div>
+                    <div>
+                        <p>{{ rowData.minT }}℃ ~ {{ rowData.maxT }}℃</p>
+                    </div>
+                </div>
             </div>
         </div>
     </article>

@@ -30,3 +30,6 @@ a:hover{
 a:active{
     color:var(--textColor);
 }
+p{
+    margin: 0;
+}
