@@ -15,6 +15,9 @@ const area = ref<string>(Array.isArray(route.query.area)?
 // 賭取資料狀態
 const apiLoading = ref<boolean>(false);
 
+// 重新抓取資料
+const loading = ref<boolean>(false);
+
 // 選取地區
 const selectArea = ref<string>("");
 
@@ -25,9 +28,12 @@ const showDay = ref<string[]>([]);
 // 要展示的資料 一周 分別 name<string>(地區) MaxT<number[7]>(當日最高) minT<number[7]>(當日最低)  weather<number[7]>(天氣找最大數值)
 const showWeatherData = ref<any[]>([]);
 // 今天
-const nowDate = ref<Date>(new Date() );
+// const nowDate = ref<Date>(new Date() );
+
 // 抓取資料
 const loading7DayWeather = async() =>{
+    console.log("抓取資料");
+    console.log(selectArea.value);
     try{
         apiLoading.value = true;
         const weatherData = await $fetch<{success:boolean, data:any}>('/api/detailWeather',{
@@ -146,6 +152,15 @@ watch(weatherDataSave,()=>{
     })
 })
 
+watch(loading, async()=>{
+    if(loading.value === false) return ;
+    await loading7DayWeather();
+    // console.log(weatherDataSave.value)
+    // console.log(showDay.value)
+    loading.value = false;
+})
+
+
 </script>
 
 <style module="style" lang="scss">
@@ -167,7 +182,6 @@ watch(weatherDataSave,()=>{
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                // background-color: rgb(83, 166, 214);
             }
             .cardItem{
                 width: calc(100%/8);
@@ -200,12 +214,17 @@ watch(weatherDataSave,()=>{
 <template>
     <article>
         <h3>目前查詢 {{selectArea}} 一周天氣預報</h3>
-
+        <!-- <select v-model="selectArea" @change="loading = true">
+            <option v-for="area in areaList" :key="area" :value="area">
+                {{ area }}
+            </option>
+        </select> -->
         <div v-if="apiLoading">
             <h2>is loading</h2>
         </div>
 
         <div v-else :class="style.cardDivContent">
+
             <div :class="style.cardTitle">
                 <div :class="style.cardTitleAreaName ,style.cardItem">
                     <p>地區</p>
@@ -214,6 +233,7 @@ watch(weatherDataSave,()=>{
                     <p>{{ day }}</p>
                 </div>
             </div>
+
             <div v-for="(row, rowKey) in showWeatherData" :key="rowKey" :class="style.cardDiv">
                 <div :class="style.cardItem">
                     {{ row[0] }}
