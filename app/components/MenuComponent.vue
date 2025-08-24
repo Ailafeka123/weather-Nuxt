@@ -28,7 +28,8 @@ import { ref, onMounted, watch } from 'vue';
         left: 0;
         width: 100%;
         height: var(--menuTop);
-        background-color: #c2b1b1;
+        background-color: var(--menuColor);
+        z-index: 999;
         .navitemList{
             display: flex;
             flex-direction: row;
