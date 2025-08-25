@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import {ref,onMounted,watch } from "vue";
+import {ref, onMounted, watch, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
+
+// 載入 chart.js 製作折線圖
+import { Chart, LineController, LineElement, PointElement, LinearScale, Title, CategoryScale, Tooltip, Legend } from "chart.js"
+Chart.register(LineController, LineElement, PointElement, LinearScale, Title, CategoryScale, Tooltip, Legend)
 
 //時間 溫度 天氣現象
 interface weatherDataList {
@@ -37,6 +41,80 @@ const dataShow = ref<showDataType>({});
 // 重新抓取資料
 const loading = ref<boolean>(false);
 
+// 折線圖
+const canvasDivRef = ref<HTMLElement | null> (null);
+const canvasRef = ref<HTMLCanvasElement | null>(null)
+let chartInstance: Chart | null = null
+
+const makerWeatherData = () =>{
+    if (!canvasRef.value) return;
+    const ctx = canvasRef.value.getContext("2d")
+    if (!ctx) return;
+    if (chartInstance) {
+        chartInstance.destroy()
+    }
+    let xArray : string[] = [];
+    let yArray : string[] = [];
+    let lastDay : string = "";
+    dataShow.value.weatherData?.forEach((index:weatherDataList)=>{
+        if(index.time){
+            const dateString :string[] = index.time.split("-");
+            if(dateString[0] !== lastDay){
+                yArray.push(`${dateString[0]}-${dateString[1]}`);
+                lastDay = dateString[0]??"";
+            }else{
+                yArray.push(dateString[1]??"")
+            }
+        }
+        if(index.Temp){
+            xArray.push(index.Temp);
+        }
+    }) 
+    const data : any =  {
+        type: "line",
+        data: {
+        labels: yArray, // x 軸 (時間)
+        datasets: [
+            {
+                label: "氣溫 (°C)", // 折線名稱
+                data: xArray, // 對應 y 軸 (溫度)
+                borderColor: "rgba(75,192,192,1)",
+                backgroundColor: "rgba(75,192,192,0.2)",
+                tension: 0, // 線條彎曲 (0 = 直線)
+                pointRadius: 5, // 點的大小
+            },
+        ],
+        },
+        options: {
+        responsive: false,
+        plugins: {
+            legend: {
+                position: "top",
+            },
+            title: {
+                display: true,
+                text: "72小時溫度預設圖 (Chart.js)",
+            },
+        },
+        scales: {
+            x: {
+                title: {
+                    display: true,
+                    text: "時間",
+                },
+            },
+            y: {
+                title: {
+                    display: true,
+                    text: "溫度 (°C)",
+                },
+            },
+        },
+        },
+    }
+    chartInstance = new Chart(ctx,data)
+}
+
 // 從api獲取資料
 const getWeather = async() =>{
     const weatherData = await $fetch <{success:boolean, data:any}>("/api/detailWeather",{
@@ -48,6 +126,23 @@ const getWeather = async() =>{
 
 // 初始化 去後臺找資料
 onMounted(async ()=>{
+    // 滾動功能
+    const scrollCanvaxDiv = (e:WheelEvent) =>{
+        const el = canvasDivRef.value
+        if (!el) return
+
+        const atStart = el.scrollLeft === 0
+        // const atEnd = el.clientWidth >= el.scrollWidth;
+        const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth -1;
+
+        // 如果還沒到邊界 → 攔截並水平捲動
+        if (!(atStart && e.deltaY < 0) && !(atEnd && e.deltaY > 0)) {
+            e.preventDefault()
+            el.scrollLeft += e.deltaY
+        }
+        // e.preventDefault();
+        // canvasDivRef.value!.scrollLeft += e.deltaY
+    }
     // 確認進到了CSR
     if(typeof window !== undefined){
         // 如果route有 則傳到本地 反之用plugins
@@ -57,7 +152,19 @@ onMounted(async ()=>{
             selectArea.value = areaSelect.value.name;
         }
         await getWeather();
+        console.log(canvasDivRef.value);
+        if(canvasDivRef.value){
+            
+            canvasDivRef.value.addEventListener("wheel",scrollCanvaxDiv,{passive: false})
+        }
     }
+    onUnmounted(() => {
+        if (chartInstance) {
+            chartInstance.destroy()
+            chartInstance = null
+        }
+        canvasDivRef.value?.removeEventListener("wheel",scrollCanvaxDiv)
+    })
 })
 
 // 讀取資料後修改
@@ -128,6 +235,11 @@ watch(selectAreaName,()=>{
     dataShow.value = tempData;
 })
 
+// 根據地區修改完成後 修改折線圖
+watch(dataShow,()=>{
+    makerWeatherData();
+})
+
 // 再次讀取資料
 watch(loading, async()=>{
     if(loading.value === false) return ;
@@ -136,19 +248,72 @@ watch(loading, async()=>{
     loading.value = false;
 })
 
+
+// 離開組件時銷毀 Chart
+
 </script>
+
+
+<style module="style" lang="scss">
+    .article{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: start;
+        .selectDiv{
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            .selectBox{
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+            
+            }
+        }
+
+        .chartJSDiv{
+            height: 500px;
+            width: 100vw;
+            overflow:auto;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 16px;
+        }
+
+    }
+</style>
+
 <template>
-    <article>
+    <article :class="style.article">
         <h2>三天預告</h2>
         <h3>目前查詢 : {{ selectArea }} - {{ selectAreaName }}</h3>
-        <select v-model="selectArea" @change="loading = true">
-            <option v-for="area in areaList" :key="area" :value="area">{{ area }}</option>
-        </select>
-        <select v-model="selectAreaName">
-            <option v-for="area in dataAreaList" :key = "area" :value="area">{{ area }}</option>
-        </select>
-        <div v-for="(item,key) in dataShow.weatherData" :key="key">
+        <client-only>
+            <div :class="style.selectDiv">
+                <div :class="style.selectBox">
+                    <p>選取全縣市</p>
+                    <select v-model="selectArea" @change="loading = true">
+                        <option v-for="area in areaList" :key="area" :value="area">{{ area }}</option>
+                    </select>
+                </div>
+                <div :class="style.selectBox">
+                    <p>選取小地區</p>
+                    <select v-model="selectAreaName">
+                        <option v-for="area in dataAreaList" :key = "area" :value="area">{{ area }}</option>
+                    </select>
+                </div>
+            </div>
+        </client-only>
+        <!-- <div v-for="(item,key) in dataShow.weatherData" :key="key">
             {{ item }}
+        </div> -->
+         <!-- class="w-full max-w-xl mx-auto" -->
+        <div ref="canvasDivRef" :class="style.chartJSDiv" >
+            <canvas ref="canvasRef" :class="style.canvasStyle" height="500px" width="1500px">
+            </canvas>
         </div>
     </article>
 </template>
