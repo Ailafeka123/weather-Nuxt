@@ -360,6 +360,7 @@ watch(loading, async()=>{
                     text-align: center;
                     transition: all 0.3s;
                     background-color: var(--weekWeatherDataListItemTitleColor);
+                    border-radius: 8px;
                     
                     &:hover{
                         background-color: var(--weekWeatherDataListItemTitleHoverColor);
@@ -368,6 +369,7 @@ watch(loading, async()=>{
                     @media(min-width:768px){
                         flex: 1 1 calc(100%/8);
                         height: var(--weekWeatherDataListItemHeight);
+                        border-radius: 0;
                         &:hover{
                             background-color: var(--weekWeatherDataListItemTitleColor);
                             transition:  all 0s;
@@ -394,6 +396,7 @@ watch(loading, async()=>{
                         transition: all 0s;
                     }
                     &.cardScrollDivActive{
+                        margin-top: 4px;
                         height: calc(var(--weekWeatherDataListItemHeight)*8 + 4px*6);
                         @media(min-width:768px){
                             height: auto;
@@ -450,14 +453,17 @@ watch(loading, async()=>{
                             flex-direction: column;
                             align-items: center;
                             justify-content: center;
+                            border: 1px solid black;
+                            border-width: 0 0 1px 0;
                             width: 100%;
                             @media(min-width:768px){
                                 height: 100%;
                                 justify-content: space-between;
                                 padding:16px 0;
+                                border-width: 0px;
                             }
                             .cardItemWeather{
-                                 display: flex;
+                                display: flex;
                                 align-items: center;
                                 justify-content: center;
                                 width: 100%;

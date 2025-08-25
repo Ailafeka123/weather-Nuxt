@@ -11,6 +11,7 @@
       {name: "description", content: "自製的氣象預告網站，採用Nuxt配合Vercel進行部屬，並採用「中央氣象署開放資料平臺之資料擷取API」作為資料使用"},
       {name:"keyword",content:"Nuxt, Vue3, 氣象預報, 開源API, vercel"},
       {name:"author", content:"劉星緯, 中央氣象署開放資料平臺之資料擷取API"},
+      {name:"robots", content:"index, follow"},
       { property: 'og:title', content: 'Aila-氣象網站' },
       { property: 'og:description', content: '自製的氣象預告網站，採用Nuxt配合Vercel進行部屬，並採用「中央氣象署開放資料平臺之資料擷取API」作為資料使用' },
       { property: 'og:type', content: 'website' },
