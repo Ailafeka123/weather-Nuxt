@@ -1,5 +1,5 @@
 export default defineNuxtPlugin ( (nuxtApp) => {
-  console.log('Plugin Loaded!')
+  // console.log('Plugin Loaded!')
   // 最後選的顯示地區
   const areaSelect = ref<{ name: string}>({ name: "宜蘭縣"})
   // 這是用於地區矯正用的

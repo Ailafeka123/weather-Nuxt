@@ -43,13 +43,19 @@ const loading = ref<boolean>(false);
 
 // 折線圖
 const canvasDivRef = ref<HTMLElement | null> (null);
-const canvasRef = ref<HTMLCanvasElement | null>(null)
-let chartInstance: Chart | null = null
-
+const canvasRef = ref<HTMLCanvasElement | null>(null);
+let chartInstance: Chart | null = null;
+// 詳細過濾分類
+// 所有的日期
+const showDayTime = ref<string[]>([]);
+const showfilterData = ref<weatherDataList[][]>([]);
+const filterKey = ref<number>(0);
+// 使用chart.js製圖
 const makerWeatherData = () =>{
     if (!canvasRef.value) return;
     const ctx = canvasRef.value.getContext("2d")
     if (!ctx) return;
+    // 清除舊圖
     if (chartInstance) {
         chartInstance.destroy()
     }
@@ -123,26 +129,23 @@ const getWeather = async() =>{
     })
     dataSave.value = weatherData?.data.records.Locations[0];
 }
+// 滾動功能
+const scrollCanvaxDiv = (e:WheelEvent) =>{
+    const el = canvasDivRef.value;
+    if (!el) return
+
+    const atStart = el.scrollLeft === 0;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth -1;
+
+    // 如果還沒到邊界 → 攔截並水平捲動
+    if (!(atStart && e.deltaY < 0) && !(atEnd && e.deltaY > 0)) {
+        e.preventDefault()
+        el.scrollLeft += e.deltaY
+    }
+}
 
 // 初始化 去後臺找資料
 onMounted(async ()=>{
-    // 滾動功能
-    const scrollCanvaxDiv = (e:WheelEvent) =>{
-        const el = canvasDivRef.value
-        if (!el) return
-
-        const atStart = el.scrollLeft === 0
-        // const atEnd = el.clientWidth >= el.scrollWidth;
-        const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth -1;
-
-        // 如果還沒到邊界 → 攔截並水平捲動
-        if (!(atStart && e.deltaY < 0) && !(atEnd && e.deltaY > 0)) {
-            e.preventDefault()
-            el.scrollLeft += e.deltaY
-        }
-        // e.preventDefault();
-        // canvasDivRef.value!.scrollLeft += e.deltaY
-    }
     // 確認進到了CSR
     if(typeof window !== undefined){
         // 如果route有 則傳到本地 反之用plugins
@@ -152,19 +155,18 @@ onMounted(async ()=>{
             selectArea.value = areaSelect.value.name;
         }
         await getWeather();
-        console.log(canvasDivRef.value);
         if(canvasDivRef.value){
-            
             canvasDivRef.value.addEventListener("wheel",scrollCanvaxDiv,{passive: false})
         }
     }
-    onUnmounted(() => {
-        if (chartInstance) {
-            chartInstance.destroy()
-            chartInstance = null
-        }
-        canvasDivRef.value?.removeEventListener("wheel",scrollCanvaxDiv)
-    })
+})
+// 離開組件時銷毀 Chart
+onUnmounted(() => {
+    if (chartInstance) {
+        chartInstance.destroy()
+        chartInstance = null
+    }
+    canvasDivRef.value?.removeEventListener("wheel",scrollCanvaxDiv)
 })
 
 // 讀取資料後修改
@@ -238,18 +240,45 @@ watch(selectAreaName,()=>{
 // 根據地區修改完成後 修改折線圖
 watch(dataShow,()=>{
     makerWeatherData();
+    // 修正過濾日期
+    let filterDataList : weatherDataList[][] = []
+    // 天氣的文字list
+    let triDayList : string[] = [];
+    // 前一個天 與天氣
+    let lastDay:string = "";
+    let lastWeather : string = "";
+    // 一天的資料
+    let todayDataList : weatherDataList[] = [];
+    dataShow.value.weatherData?.forEach((index:any)=>{
+        let filterDay :string[] = index.time.split("-");
+        let tempList : weatherDataList = {time:filterDay[1], Temp:index.Temp, weather:index.weather??lastWeather};
+        todayDataList.push(tempList);
+        lastWeather = index.weather ?? lastWeather;
+        if(lastDay === ""){
+            lastDay = filterDay[0]??"";
+        }else if(lastDay !== filterDay[0]){
+            triDayList.push(lastDay);
+            filterDataList.push(todayDataList);
+            todayDataList = [];
+            lastDay = filterDay[0]??"";
+        }else{
+
+        }
+
+    })
+    showDayTime.value = triDayList;
+    showfilterData.value = filterDataList;
 })
 
 // 再次讀取資料
 watch(loading, async()=>{
     if(loading.value === false) return ;
     await getWeather();
-    console.log(dataSave.value);
     loading.value = false;
 })
 
 
-// 離開組件時銷毀 Chart
+
 
 </script>
 
@@ -284,6 +313,97 @@ watch(loading, async()=>{
             padding: 16px;
         }
 
+        .filterDataList{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: start;
+
+            width: 100%;
+            padding: 16px 0 ;
+            @media(min-width:768px){
+                padding:16px;
+            }
+            .dataListSelect{
+                width: 100%;
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-around;
+                gap: 4px;
+                .dataSelect{
+                    flex:1 1 25%;
+                    text-align: center;
+                    background-color: var(--weekWeatherDataListItemTitleColor);
+                    padding:16px;
+                    &:hover{
+                        cursor: pointer;
+                        background-color: var(--weekWeatherDataListItemTitleHoverColor);
+                    }
+                    &.Active{
+                        background-color: #a74242;
+                    }
+                }
+            }
+            .weatherDataTitleShowList{
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                padding:0 16px;
+                .weatherDataTitleShow{
+                    display: flex;
+                    flex-direction: row;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding:8px 16px;
+                    flex: 0 0 100%;
+                    @media(min-width:768px){
+                        flex:  0 0 50%;
+                    }
+                    &.secendTitle{
+                        display: none;
+                        @media(min-width:768px){
+                            display: flex;
+                        }
+                    }
+                    p{
+                        width: 50px;
+                        text-align: center;
+                    }
+                }
+            }
+            .weatherDataShowList{
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: start;
+                padding:0 16px;
+                // gap: 4px;
+                .weatherDataShow{
+                    flex: 0 0 100%;
+                    display: flex;
+                    flex-direction: row;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 8px 16px;
+                    // gap: 4px;
+                    width: 100%;
+                    height: var(--weekWeatherDataListItemHeight);
+                    border: solid 2px black;
+                    border-width: 0 0 2px 0;
+                    @media(min-width:768px){
+                        flex: 0 0 50%;
+                    }
+                    p{
+                        width: 50px;
+                        text-align: center;
+                    }
+                }
+            }
+        }
+
     }
 </style>
 
@@ -307,13 +427,38 @@ watch(loading, async()=>{
                 </div>
             </div>
         </client-only>
-        <!-- <div v-for="(item,key) in dataShow.weatherData" :key="key">
-            {{ item }}
-        </div> -->
-         <!-- class="w-full max-w-xl mx-auto" -->
         <div ref="canvasDivRef" :class="style.chartJSDiv" >
-            <canvas ref="canvasRef" :class="style.canvasStyle" height="500px" width="1500px">
+            <canvas ref="canvasRef"  height="500px" width="1500px">
             </canvas>
+        </div>
+        <div :class="style.filterDataList">
+            <h3>詳細資料</h3>
+            <div >
+                <div :class="style.dataListSelect">
+                    <div v-for="(dataTime,dataKey) in showDayTime" :key="dataKey"  @click="()=>{filterKey = dataKey}" :class="[style.dataSelect,{[style.Active]:filterKey === dataKey} ]">
+                        {{ dataTime }}
+                    </div>
+                </div>
+                <div :class="style.weatherDataTitleShowList">
+                    <div :class="style.weatherDataTitleShow">
+                        <p>時間</p>
+                        <p>溫度</p>
+                        <p>天氣</p>
+                    </div>
+                    <div :class="[style.weatherDataTitleShow, style.secendTitle]">
+                        <p>時間</p>
+                        <p>溫度</p>
+                        <p>天氣</p>
+                    </div>
+                </div>
+                <div :class="style.weatherDataShowList">
+                    <div v-for="(weatherData, weatherDataKey) in showfilterData[filterKey]" :key="`${weatherData.time}`" :class="style.weatherDataShow">
+                        <p>{{ weatherData.time }}</p>
+                        <p>{{ weatherData.Temp }}℃</p>
+                        <p>{{ weatherData.weather }}</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </article>
 </template>
