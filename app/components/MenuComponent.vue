@@ -19,17 +19,30 @@ import { ref, onMounted, watch } from 'vue';
 
 <style module="style" lang="scss">
     .menuDiv{
+        box-sizing: border-box;
         display: flex;
         flex-direction: row;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: var(--menuTop);
+        padding: 0 16px;
         background-color: var(--menuColor);
         z-index: 999;
+        .indexIconDiv{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            .indexIcon{
+                width: 40px;
+                height: 40px;
+            }
+        }
         .navitemList{
             display: flex;
             flex-direction: row;
@@ -37,7 +50,7 @@ import { ref, onMounted, watch } from 'vue';
             justify-content: center;
             padding:0;
             margin: 0;
-            gap: 8px;
+            gap: 16px;
             li{
                 color: var(--textColor);
                 &:active{
@@ -50,6 +63,11 @@ import { ref, onMounted, watch } from 'vue';
 
 <template>
     <nav id="menu" :class="style.menuDiv" aria-label="主要導覽列">
+        <div :class="style.indexIconDiv">
+            <NuxtLink :to= "{ path: `/`, query:{area:selectArea}}">
+                <img src="/image/selficon.svg" alt="icon" :class="style.indexIcon"></img>
+            </NuxtLink>
+        </div>
         <ul :class="style.navitemList">
             <li><NuxtLink :to= "{ path: `/` ,query:{area:selectArea} }">首頁</NuxtLink></li>
             <li><NuxtLink :to="{path:`/weekWeather` , query:{area:selectArea} }">一周預告</NuxtLink></li>

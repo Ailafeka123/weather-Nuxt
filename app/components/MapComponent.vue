@@ -323,8 +323,10 @@ h2{
       flex: 0 0 100%;
       width: 100%;
       gap: 12px;
+      padding:16px 8px;
       @media(min-width:768px){
         flex: 0 0 calc(( 100% / 12 ) * 6);
+        // padding:16px 8px;
       }
       @media(min-width:1024px){
         // flex: 0 0 calc(( 100% / 12) * 5)
@@ -352,9 +354,10 @@ h2{
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          background-color:wheat;
+          background-color:var(--menuColor);
           min-width: 150px;
           border-radius:8px;
+          padding:16px;
           @media(min-width:768px){
             min-width: 150px;
     
@@ -362,6 +365,29 @@ h2{
         }
       }
       
+      .LinkDiv{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        gap: 8px;
+        padding: 0 16px;
+        // background-color: var(--menuColor);
+        .linkItem{
+          width: 100%;
+          text-align: center;
+          border-radius: 8px;
+          padding:16px;
+          background-color: var(--indexMapColor);
+          &:hover{
+            cursor: pointer;
+            background-color: var(--indexMapHoverColor);
+          }
+        }
+      }
+
+
     }
   }
 </style>
@@ -437,13 +463,15 @@ h2{
 
         <div :class="style.mapMessageDiv">
           <div :class="style.selectDiv">
-            <h3>{{selectRegionName}}</h3>
-            <select v-model="selectRegionName" @change ="selectRegionFunctionUse = true" :class="style.selectStyle">
-              <option value="" disabled>請選擇行政區</option>
-              <option v-for="area in AreaList" :key="area" :value="area">
-                {{ area }}
-              </option>
-            </select>
+            <h3>當前選取:{{selectRegionName}}</h3>
+            <div>
+              <select v-model="selectRegionName" @change ="selectRegionFunctionUse = true" :class="style.selectStyle">
+                <option value="" disabled>請選擇行政區</option>
+                <option v-for="area in AreaList" :key="area" :value="area">
+                  {{ area }}
+                </option>
+              </select>
+            </div>
           </div>
 
           <div :class="style.messageCardDiv">
@@ -459,6 +487,14 @@ h2{
             </div>
           </div>
           
+          <div :class="style.LinkDiv">
+            <NuxtLink :to="{path:`/weekWeather`, query:{area:selectRegionName} } " :class="style.linkItem">
+              <p >查看 {{selectRegionName}} 一周氣象</p>
+            </NuxtLink>
+            <NuxtLink :to="{path:`/triDayWeather`, query:{area:selectRegionName} } " :class="style.linkItem">
+              <p >查看 {{selectRegionName}} 72小時內氣象</p>
+            </NuxtLink>
+          </div>
           
         </div>
       </div>

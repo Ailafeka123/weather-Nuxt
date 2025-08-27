@@ -3,8 +3,10 @@
     --textColor:black;
     --textColor-2:rgb(46, 46, 46);
 
-    --menuColor:#c2b1b1;
+    --menuColor:wheat;
 
+    --indexMapColor:#74b9ff;
+    --indexMapHoverColor:#8fc5fa;
 
     --weekWeatherDataListItemHeight:100px;
     --weekWeatherDataListItemTitleColor:rgb(165, 97, 97);
