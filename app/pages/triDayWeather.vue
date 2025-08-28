@@ -311,6 +311,12 @@ watch(loading, async()=>{
             overflow-x: auto;
             overflow-y: hidden;
             padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: start;
+            @media(min-width:1500px){
+                justify-content: center;
+            }
         }
 
         .filterDataList{
